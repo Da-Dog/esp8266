@@ -7,8 +7,10 @@
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
 
-const char ssid[] = "ATT9eg4Iys";
-const char pass[] = "a5dvbgn3db5n";
+// put in wifi SSID
+const char ssid[] = "";
+// put wifi password here
+const char pass[] = "";
 static const char ntpServerName[] = "time.google.com";
 const int timeZone = -7;
 
@@ -48,6 +50,7 @@ void oledClockDisplay() {
   if (i > 150) {
     if (client.connect("api.openweathermap.org", 80))
     {
+      // change this link to the city that you want the temperature to be
       client.println("GET /data/2.5/weather?q=San%20Francisco,US&APPID=9c01fd6f5fb3e80415a3009bab170f4b");
       client.println("Host: api.openweathermap.org");
       client.println("User-Agent: ArduinoWiFi/1.1");
