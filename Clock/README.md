@@ -1,6 +1,6 @@
 # Clock
 
-This is a clock that can also display temperature
+This is a clock that can also display the temperature
 
 ### Few things that you might need to change in the code
 
