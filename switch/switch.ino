@@ -1,8 +1,8 @@
 #include <ESP8266WiFi.h>
 
 // wifi, GPIO settings
-const char *ssid = "ATT9eg4Iys";
-const char *password = "a5dvbgn3db5n";
+const char *ssid = "";
+const char *password = "";
 int relayInput1 = 2;
 int relayInput2 = 0;
 bool operating = false;
