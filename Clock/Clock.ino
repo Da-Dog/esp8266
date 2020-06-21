@@ -5,86 +5,67 @@
 #include <SPI.h>
 #include <U8g2lib.h>
 
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
-// put in wifi SSID
-const char ssid[] = "";
-// put wifi password here
-const char pass[] = "";
-static const char ntpServerName[] = "time.google.com";
+const char *ssid = "ATT9eg4Iys";
+const char *password = "a5dvbgn3db5n";
+static const char ntpServerName[] = "time1.google.com";
 const int timeZone = -7;
 
-WiFiClient client;
-WiFiUDP Udp;
 unsigned int localPort = 8888;
-
-int i = 151;
+const int slaveSelect = 5;
+const int scanLimit = 7;
 String result;
 float temp;
 
-boolean isNTPConnected = false;
+
+WiFiClient client;
+WiFiUDP Udp;
+
 
 void setup()
 {
   u8g2.begin();
   u8g2.enableUTF8Print();
-
-  WiFi.begin(ssid, pass);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-  }
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_unifont_t_chinese2);
+  u8g2.setCursor(0, 14);
+  u8g2.print("Waiting for WiFi");
+  u8g2.setCursor(0, 30);
+  u8g2.print("connection...");
+  u8g2.sendBuffer();
+  Serial.println("OLED Ready");
+  Serial.begin(9600);
+  Serial.println("");
+	Serial.print("Connecting...");
+	WiFi.begin(ssid, password);
+	while (WiFi.status() != WL_CONNECTED) {
+		delay(1000);
+		Serial.print(".");
+	}
+  Serial.println("");
+	Serial.println("WiFi connected.");
+	Serial.println("IP address: ");
+	Serial.println(WiFi.localIP());
   Udp.begin(localPort);
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
-  isNTPConnected = true;
 }
+
+time_t prevDisplay = 0;
 
 void loop() {
   if (timeStatus() != timeNotSet)
   {
-    oledClockDisplay();
+    if (now() != prevDisplay)
+    {
+      prevDisplay = now();
+      oledClockDisplay();
+    }
   }
 }
 
 void oledClockDisplay() {
-  if (i > 150) {
-    if (client.connect("api.openweathermap.org", 80))
-    {
-      // change this link to the city that you want the temperature to be
-      client.println("GET /data/2.5/weather?q=San%20Francisco,US&APPID=9c01fd6f5fb3e80415a3009bab170f4b");
-      client.println("Host: api.openweathermap.org");
-      client.println("User-Agent: ArduinoWiFi/1.1");
-      client.println("Connection: close");
-      client.println();
-    }
-    else
-    {
-      return;
-    }
-    while (client.connected() && !client.available())
-      delay(1);
-    while (client.connected() || client.available())
-    {
-      char c = client.read();
-      result = result + c;
-    }
-    client.stop();
-    result.replace('[', ' ');
-    result.replace(']', ' ');
-    char jsonArray[result.length() + 1];
-    result.toCharArray(jsonArray, sizeof(jsonArray));
-    jsonArray[result.length() + 1] = '\0';
-    StaticJsonBuffer<1024> json_buf;
-    JsonObject &root = json_buf.parseObject(jsonArray);
-    if (!root.success())
-    {
-      return;
-    }
-    float temp1 = root["main"]["temp"];
-    float temp2 = temp1 - 273.15;
-    temp = temp2 * 1.8000 + 32.00;
-    i = 0;
-  }
   int years, months, days, hours, minutes, seconds, weekdays;
   years = year();
   months = month();
@@ -96,8 +77,7 @@ void oledClockDisplay() {
   u8g2.clearBuffer();
   u8g2.setCursor(0, 14);
   u8g2.setFont(u8g2_font_unifont_t_chinese2);
-  u8g2.print("Temp: ");
-  u8g2.print(temp);
+  u8g2.print("Current Time");
   String currentTime = "";
   if (hours < 10)
     currentTime += 0;
@@ -142,55 +122,48 @@ void oledClockDisplay() {
   else if (weekdays == 7)
     u8g2.print(" Sat");
   u8g2.sendBuffer();
-  delay(500);
-  i++;
 }
 
+
+// NTP 
 const int NTP_PACKET_SIZE = 48;
 byte packetBuffer[NTP_PACKET_SIZE];
 
-
 time_t getNtpTime()
 {
-  IPAddress ntpServerIP;
+    IPAddress ntpServerIP;
 
-  while (Udp.parsePacket() > 0);
-  WiFi.hostByName(ntpServerName, ntpServerIP);
-  sendNTPpacket(ntpServerIP);
-  uint32_t beginWait = millis();
-  while (millis() - beginWait < 1500)
-  {
-    int size = Udp.parsePacket();
-    if (size >= NTP_PACKET_SIZE)
-    {
-      isNTPConnected = true;
-      Udp.read(packetBuffer, NTP_PACKET_SIZE);
-      unsigned long secsSince1900;
-      secsSince1900 = (unsigned long)packetBuffer[40] << 24;
-      secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
-      secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
-      secsSince1900 |= (unsigned long)packetBuffer[43];
-      return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
+    while (Udp.parsePacket() > 0);
+    WiFi.hostByName(ntpServerName, ntpServerIP);
+    sendNTPpacket(ntpServerIP);
+    uint32_t beginWait = millis();
+    while (millis() - beginWait < 1500){
+        int size = Udp.parsePacket();
+        if (size >= NTP_PACKET_SIZE){
+            Udp.read(packetBuffer, NTP_PACKET_SIZE);
+            unsigned long secsSince1900;
+            secsSince1900 = (unsigned long)packetBuffer[40] << 24;
+            secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
+            secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
+            secsSince1900 |= (unsigned long)packetBuffer[43];
+            return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
+        }
     }
-  }
-  isNTPConnected = false;
-  return 0;
+    return 0;
 }
 
-
-void sendNTPpacket(IPAddress& address)
+void sendNTPpacket(IPAddress &address)
 {
-  memset(packetBuffer, 0, NTP_PACKET_SIZE);
-  packetBuffer[0] = 0b11100011; // LI, Version, Mode
-  packetBuffer[1] = 0;          // Stratum, or type of clock
-  packetBuffer[2] = 6;          // Polling Interval
-  packetBuffer[3] = 0xEC;       // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
-  packetBuffer[12] = 49;
-  packetBuffer[13] = 0x4E;
-  packetBuffer[14] = 49;
-  packetBuffer[15] = 52;
-  Udp.beginPacket(address, 123);
-  Udp.write(packetBuffer, NTP_PACKET_SIZE);
-  Udp.endPacket();
+    memset(packetBuffer, 0, NTP_PACKET_SIZE);
+    packetBuffer[0] = 0b11100011;
+    packetBuffer[1] = 0;
+    packetBuffer[2] = 6;
+    packetBuffer[3] = 0xEC;
+    packetBuffer[12] = 49;
+    packetBuffer[13] = 0x4E;
+    packetBuffer[14] = 49;
+    packetBuffer[15] = 52;
+    Udp.beginPacket(address, 123);
+    Udp.write(packetBuffer, NTP_PACKET_SIZE);
+    Udp.endPacket();
 }
